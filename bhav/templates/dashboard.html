@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf %}
+{% block title %}Dashboard · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="wrap section">
+  <div class="card-head">
+    <h1 class="h2">Dashboard</h1>
+    <span class="chip {{ 'chg-down' if is_pro else 'chg-flat' }}">{{ 'Pro plan' if is_pro else 'Free plan' }}</span>
+  </div>
+  <p class="muted">{{ current_user.email }}</p>
+
+  {% if not is_pro %}
+  <div class="card card-featured">
+    <h2 class="h3">Unlock alerts and your basket</h2>
+    <p>Pro adds price alerts, a monthly basket cost tracker, a log of what you actually paid, and up to a year of history for {{ pro_price|inr }} per month.</p>
+    {% if requested %}
+      <p class="flash flash-ok">Your request is in. We'll email you when Pro is switched on.</p>
+    {% else %}
+      <form method="post" action="{{ url_for('main.upgrade') }}">{{ csrf() }}<button type="submit" class="btn btn-primary">Request Pro access</button></form>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2 class="h3">Settings</h2>
+    <form method="post" action="{{ url_for('main.settings') }}" class="form-stack">
+      {{ csrf() }}
+      <label for="state">Your state (used for your basket and alerts)</label>
+      <select id="state" name="state">
+        <option value="">All India</option>
+        {% for st in states %}<option value="{{ st }}" {{ 'selected' if st == current_user.state }}>{{ st }}</option>{% endfor %}
+      </select>
+      {% if telegram_enabled %}
+      <label for="telegram_chat_id">Telegram chat ID (optional)</label>
+      <input id="telegram_chat_id" name="telegram_chat_id" inputmode="numeric" value="{{ current_user.telegram_chat_id }}">
+      <p class="muted small">Send /start to the bot, then enter your numeric chat ID here to receive alerts on Telegram.</p>
+      {% endif %}
+      <label class="check-row"><input type="checkbox" name="digest_opt_in" value="1" {{ 'checked' if current_user.digest_opt_in }}> Send me the weekly summary</label>
+      <button type="submit" class="btn btn-outline">Save settings</button>
+    </form>
+  </div>
+
+  {% if is_pro %}
+  <div class="card">
+    <h2 class="h3">Your monthly basket</h2>
+    {% if basket['items'] %}
+    <div class="table-scroll">
+      <table class="table">
+        <caption class="sr-only">Monthly basket priced at today's wholesale prices</caption>
+        <thead><tr><th scope="col">Item</th><th scope="col" class="num">Quantity</th><th scope="col" class="num">Price/kg</th><th scope="col" class="num">Cost</th><th scope="col" class="num">vs 30 days ago</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+        <tbody>
+        {% for i in basket['items'] %}
+          <tr>
+            <th scope="row">{{ i.name }}{% if i.national %} <span class="muted small">(all-India)</span>{% endif %}</th>
+            <td class="num">{{ '%g'|format(i.qty) }} kg</td>
+            <td class="num">{{ i.price|inr1 }}</td>
+            <td class="num">{{ i.cost|inr }}</td>
+            <td class="num">{% if i.change is none %}–{% else %}<span class="chip {{ i.change|chg(0.5) }}">{{ i.change|inr }}</span>{% endif %}</td>
+            <td><form method="post" action="{{ url_for('main.basket_delete', item_id=i.id) }}">{{ csrf() }}<button class="linklike" type="submit" aria-label="Remove {{ i.name }}">Remove</button></form></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr><th scope="row">Monthly total</th><td></td><td></td><td class="num">{{ basket.total|inr }}</td><td class="num">{{ basket.diff|inr }}</td><td></td></tr></tfoot>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">Add what you buy each month to see its cost move with prices.</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('main.basket_add') }}" class="inline-fields">
+      {{ csrf() }}
+      <label for="b-commodity" class="sr-only">Commodity</label>
+      <select id="b-commodity" name="commodity" required>
+        <option value="">Choose a commodity</option>
+        {% for c in commodities %}<option value="{{ c.slug }}">{{ c.name }}</option>{% endfor %}
+      </select>
+      <label for="b-qty" class="sr-only">Quantity per month in kg</label>
+      <input id="b-qty" name="qty_kg" type="number" step="any" min="0" placeholder="kg per month" required>
+      <button type="submit" class="btn btn-primary">Add to basket</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 class="h3">Price alerts</h2>
+    {% if alerts %}
+    <div class="table-scroll">
+      <table class="table">
+        <caption class="sr-only">Your price alerts</caption>
+        <thead><tr><th scope="col">Commodity</th><th scope="col">Where</th><th scope="col">Alert when price is</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+        <tbody>
+        {% for a in alerts %}
+          <tr>
+            <th scope="row">{{ a.name }}</th>
+            <td>{{ a.state or 'All India' }}</td>
+            <td>{{ a.direction }} {{ a.threshold_per_kg|inr1 }}/kg</td>
+            <td><form method="post" action="{{ url_for('main.alert_delete', alert_id=a.id) }}">{{ csrf() }}<button class="linklike" type="submit" aria-label="Remove alert for {{ a.name }}">Remove</button></form></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">No alerts yet. You'll get an email (and a Telegram message if set up) when a price crosses your limit.</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('main.alert_add') }}" class="inline-fields">
+      {{ csrf() }}
+      <label for="a-commodity" class="sr-only">Commodity</label>
+      <select id="a-commodity" name="commodity" required>
+        <option value="">Choose a commodity</option>
+        {% for c in commodities %}<option value="{{ c.slug }}">{{ c.name }}</option>{% endfor %}
+      </select>
+      <label for="a-state" class="sr-only">State</label>
+      <select id="a-state" name="state">
+        <option value="">All India</option>
+        {% for st in states %}<option value="{{ st }}">{{ st }}</option>{% endfor %}
+      </select>
+      <label for="a-direction" class="sr-only">Direction</label>
+      <select id="a-direction" name="direction">
+        <option value="above">goes above</option>
+        <option value="below">goes below</option>
+      </select>
+      <label for="a-threshold" class="sr-only">Price per kg in rupees</label>
+      <input id="a-threshold" name="threshold" type="number" step="any" min="0" placeholder="₹ per kg" required>
+      <button type="submit" class="btn btn-primary">Add alert</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 class="h3">What you paid</h2>
+    <p class="muted">Log your purchases to see how your price compares with the wholesale reference price.</p>
+    {% if purchases %}
+    <div class="table-scroll">
+      <table class="table">
+        <caption class="sr-only">Your purchases in the last 30 days compared with wholesale prices</caption>
+        <thead><tr><th scope="col">Item</th><th scope="col" class="num">Quantity (30 days)</th><th scope="col" class="num">You paid/kg</th><th scope="col" class="num">Wholesale/kg</th><th scope="col" class="num">Difference</th></tr></thead>
+        <tbody>
+        {% for p in purchases %}
+          <tr>
+            <th scope="row">{{ p.name }}</th>
+            <td class="num">{{ '%g'|format(p.qty) }} kg</td>
+            <td class="num">{{ p.paid|inr1 }}</td>
+            <td class="num">{{ p.market|inr1 }}</td>
+            <td class="num"><span class="chip {{ p.diff_pct|chg }}">{{ p.diff_pct|pct }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    <form method="post" action="{{ url_for('main.purchase_add') }}" class="inline-fields">
+      {{ csrf() }}
+      <label for="p-commodity" class="sr-only">Commodity</label>
+      <select id="p-commodity" name="commodity" required>
+        <option value="">Choose a commodity</option>
+        {% for c in commodities %}<option value="{{ c.slug }}">{{ c.name }}</option>{% endfor %}
+      </select>
+      <label for="p-date" class="sr-only">Date bought</label>
+      <input id="p-date" name="bought_on" type="date" value="{{ today }}" max="{{ today }}" required>
+      <label for="p-price" class="sr-only">Price paid per kg</label>
+      <input id="p-price" name="price_per_kg" type="number" step="any" min="0" placeholder="₹ per kg" required>
+      <label for="p-qty" class="sr-only">Quantity in kg</label>
+      <input id="p-qty" name="qty_kg" type="number" step="any" min="0" placeholder="kg" required>
+      <button type="submit" class="btn btn-primary">Log purchase</button>
+    </form>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

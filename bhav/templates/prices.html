@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Wholesale prices today · {{ app_name }}{% endblock %}
+{% block description %}Today's average wholesale mandi prices for staples such as wheat, rice, dal and onion, in rupees per kg.{% endblock %}
+{% block content %}
+<section class="wrap section">
+  <h1 class="h2">Wholesale prices</h1>
+  <p class="lead">Average mandi price across reporting markets, in rupees per kg.</p>
+  {% if items %}
+  <div class="table-scroll">
+    <table class="table">
+      <caption class="sr-only">Latest wholesale price by commodity</caption>
+      <thead><tr><th scope="col">Commodity</th><th scope="col" class="num">Price per kg</th><th scope="col" class="num">Markets</th><th scope="col">As of</th></tr></thead>
+      <tbody>
+      {% for i in items %}
+        <tr>
+          <th scope="row"><a href="{{ url_for('main.commodity', slug=i.slug) }}">{{ i.name }}</a></th>
+          <td class="num">{{ i.price|inr1 }}</td>
+          <td class="num">{{ i.markets }}</td>
+          <td>{{ i.latest }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="card">No price data has been loaded yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

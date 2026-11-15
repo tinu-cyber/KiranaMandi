@@ -1,0 +1,30 @@
+{% macro csrf() %}<input type="hidden" name="_csrf" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro chart(c, label) %}
+{% if c %}
+<svg viewBox="0 0 600 200" role="img" aria-label="{{ label }}" class="chart">
+  <line x1="0" y1="50" x2="600" y2="50" class="chart-grid"/>
+  <line x1="0" y1="100" x2="600" y2="100" class="chart-grid"/>
+  <line x1="0" y1="150" x2="600" y2="150" class="chart-grid"/>
+  {% if c.area %}
+  <polygon points="{{ c.area }}" class="chart-area"/>
+  <polyline points="{{ c.line }}" class="chart-line"/>
+  {% endif %}
+  <circle cx="{{ c.last_x }}" cy="{{ c.last_y }}" r="6" class="chart-dot"/>
+</svg>
+{% else %}
+<p class="muted">No price history yet.</p>
+{% endif %}
+{% endmacro %}
+
+{% macro change(value, suffix='') %}
+<span class="chip {{ value|chg }}">
+  {%- if value is none %}–
+  {%- elif value|abs <= 0.05 %}Unchanged{{ suffix }}
+  {%- else %}{{ 'Up' if value > 0 else 'Down' }} {{ value|abs|round(1) }}%{{ suffix }}{% endif -%}
+</span>
+{% endmacro %}
+
+{% macro check() %}
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="check"><path d="M5 12l5 5L20 7"/></svg>
+{% endmacro %}

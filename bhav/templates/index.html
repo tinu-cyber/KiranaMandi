@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, chart, change, check %}
+{% block content %}
+
+<section class="wrap hero">
+  <div class="hero-copy">
+    <p class="pill">Daily wholesale prices for raw ingredients</p>
+    <h1 class="h1">Know the price before you buy.</h1>
+    <p class="lead">Track wheat, rice, dal, onion and more. Get an alert when prices move, and see what your kitchen's monthly basket is really costing you.</p>
+    <form id="signup" method="post" action="{{ url_for('main.subscribe') }}" class="inline-fields">
+      {{ csrf() }}
+      <label for="email" class="sr-only">Email address</label>
+      <input id="email" name="email" type="email" placeholder="you@yourbusiness.com" autocomplete="email" required>
+      <button type="submit" class="btn btn-primary">Get the free weekly summary</button>
+    </form>
+    <p class="muted small">Free to start. No card needed.</p>
+  </div>
+
+  <div class="card hero-card">
+    {% if panels %}
+    <div class="card-head">
+      <span class="label">Wholesale reference price</span>
+      {% if demo_data %}<span class="chip chg-flat">Sample data</span>{% endif %}
+    </div>
+    <div class="tabs" role="group" aria-label="Choose a commodity" data-tabs>
+      {% for p in panels %}
+      <button type="button" class="tab" data-tab="panel-{{ loop.index0 }}" aria-controls="panel-{{ loop.index0 }}" aria-pressed="{{ 'true' if loop.first else 'false' }}">{{ p.name.split('(')[0].strip() }}</button>
+      {% endfor %}
+    </div>
+    {% for p in panels %}
+    <div id="panel-{{ loop.index0 }}" data-panel {% if not loop.first %}hidden{% endif %}>
+      <div class="price-line">
+        <span class="price">{{ p.now|inr1 }}</span>
+        <span class="muted">per kg</span>
+        {{ change(p.change_pct, ' in 30 days') }}
+      </div>
+      {{ chart(p.chart, 'Line chart of the last 30 days of ' ~ p.name ~ ' prices') }}
+      <div class="chart-foot">
+        <span>30 days ago</span>
+        <span>30-day range {{ p.lo|inr1 }} to {{ p.hi|inr1 }}</span>
+        <span>{{ p.last_date }}</span>
+      </div>
+      <p><a href="{{ url_for('main.commodity', slug=p.slug) }}">See all markets for {{ p.name }}</a></p>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="label">Prices are being loaded</p>
+    <p class="muted">Price data will appear here after the first daily update.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section id="features" class="wrap section">
+  <h2 class="h2">Built for people who buy raw ingredients every week</h2>
+  <p class="lead">Government price data is free but hard to use day to day. We turn it into trends, alerts and a cost view you can act on.</p>
+  <div class="cards">
+    <div class="card">
+      <h3 class="h3">Price alerts</h3>
+      <p>Set a limit on any commodity and get a message by email or Telegram when the wholesale price crosses it.</p>
+    </div>
+    <div class="card">
+      <h3 class="h3">Your basket cost</h3>
+      <p>Enter what you buy each month and see how the total changes as prices move. Log what you actually paid to compare.</p>
+    </div>
+    <div class="card">
+      <h3 class="h3">Compare regions</h3>
+      <p>See the same commodity across states and markets, and spot where prices are running higher or lower.</p>
+    </div>
+  </div>
+</section>
+
+{% if basket %}
+<section id="basket" class="wrap section two-col">
+  <div class="card">
+    <h3 class="h3">What an alert looks like</h3>
+    <p class="muted">Pick a commodity, your state and a price limit. We message you when it crosses.</p>
+    {% if example_alert %}
+    <div class="sample-msg">
+      <div class="sample-meta"><span>{{ app_name }} alert</span><span>Example</span></div>
+      <p class="sample-title">{{ example_alert.name }} crossed your {{ example_alert.limit|inr }}/kg limit</p>
+      <p class="muted">The wholesale reference price is {{ example_alert.price|inr1 }}/kg.</p>
+    </div>
+    {% endif %}
+    <div class="chips"><span class="chip chg-flat">Email</span><span class="chip chg-flat">Telegram</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3 class="h3">Your monthly basket</h3>
+      <span class="chip chg-flat">Example quantities</span>
+    </div>
+    <p class="muted">Change versus 30 days ago for a sample basket.</p>
+    <div class="table-scroll">
+      <table class="table">
+        <caption class="sr-only">Example monthly basket</caption>
+        <thead><tr><th scope="col">Item</th><th scope="col" class="num">Quantity</th><th scope="col" class="num">Price/kg</th><th scope="col" class="num">Cost</th><th scope="col" class="num">30-day change</th></tr></thead>
+        <tbody>
+        {% for r in basket %}
+          <tr>
+            <th scope="row">{{ r.name.split('(')[0].strip() }}</th>
+            <td class="num">{{ r.qty }} kg</td>
+            <td class="num">{{ r.price|inr1 }}</td>
+            <td class="num">{{ r.cost|inr }}</td>
+            <td class="num">{% if r.change is none %}–{% else %}<span class="chip {{ r.change|chg(0.5) }}">{{ r.change|inr }}</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr><th scope="row">Monthly total</th><td></td><td></td><td class="num">{{ basket_total|inr }}</td><td class="num">{{ basket_diff|inr }}</td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="wrap section">
+  <h2 class="h2">Made for kitchens and small traders</h2>
+  <div class="chips big">
+    <span class="chip chg-flat">Cloud kitchens</span><span class="chip chg-flat">Caterers</span>
+    <span class="chip chg-flat">Restaurants</span><span class="chip chg-flat">Bakeries</span>
+    <span class="chip chg-flat">Hostel and mess operators</span><span class="chip chg-flat">Small wholesalers</span>
+  </div>
+</section>
+
+<section id="pricing" class="wrap section">
+  <h2 class="h2">Start free. Upgrade when alerts matter.</h2>
+  <div class="cards two">
+    <div class="card">
+      <h3 class="h3">Free</h3>
+      <p class="plan-price">₹0 <span class="muted">per month</span></p>
+      <ul class="ticks">
+        <li>{{ check() }}Price pages for every commodity</li>
+        <li>{{ check() }}7-day and 30-day charts, by state</li>
+        <li>{{ check() }}Market-by-market prices</li>
+        <li>{{ check() }}Weekly summary email</li>
+      </ul>
+      <a class="btn btn-outline" href="{{ url_for('auth.signup') }}">Start free</a>
+    </div>
+    <div class="card card-featured">
+      <div class="card-head"><h3 class="h3">Pro</h3><span class="chip chg-down">For regular buyers</span></div>
+      <p class="plan-price">{{ pro_price|inr }} <span class="muted">per month</span></p>
+      <ul class="ticks">
+        <li>{{ check() }}Price alerts by email and Telegram</li>
+        <li>{{ check() }}Monthly basket cost tracker</li>
+        <li>{{ check() }}90-day and 1-year history</li>
+        <li>{{ check() }}All-states comparison</li>
+        <li>{{ check() }}Log your own purchase prices</li>
+      </ul>
+      <a class="btn btn-primary" href="{{ url_for('auth.signup') }}">Request Pro access</a>
+      <p class="muted small">Pro is invite-only while billing is being set up.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="band">
+    <div>
+      <h2 class="h2">Get the weekly price summary</h2>
+      <p>One short email: what moved, by how much, and what it means for your basket.</p>
+    </div>
+    <form method="post" action="{{ url_for('main.subscribe') }}" class="inline-fields">
+      {{ csrf() }}
+      <label for="email2" class="sr-only">Email address</label>
+      <input id="email2" name="email" type="email" placeholder="you@yourbusiness.com" autocomplete="email" required>
+      <button type="submit" class="btn btn-cta">Send me the summary</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

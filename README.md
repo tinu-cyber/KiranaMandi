@@ -1,0 +1,106 @@
+# Bhav
+
+Daily wholesale prices for raw ingredients (wheat, rice, dal, onion and more), with price alerts and a monthly basket cost tracker. Built for cloud kitchens, caterers, small restaurants and traders who buy staples every week.
+
+"Bhav" is a working name. Change it with `APP_NAME` in `.env`.
+
+## What it does
+
+| | Free | Pro |
+|---|---|---|
+| Price page for every commodity, 7 and 30 day charts, filter by state | yes | yes |
+| Market-by-market prices | 10 cheapest | up to 50 |
+| Weekly summary email | yes | yes, with basket total |
+| 90 day and 1 year history | | yes |
+| All-states comparison | | yes |
+| Price alerts (email and Telegram) | | yes |
+| Monthly basket cost tracker | | yes |
+| Log what you paid and compare with wholesale | | yes |
+
+Billing is not built yet. Users request Pro from their dashboard and you switch them on by hand (see "Plans and billing").
+
+## Run it locally
+
+Needs Python 3.10 or newer.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env            # for local use you can leave the defaults and set FLASK_DEBUG=1
+export FLASK_DEBUG=1
+flask --app wsgi seed-demo      # 60 days of clearly labelled synthetic prices
+flask --app wsgi run
+```
+
+Open http://localhost:5000. Demo data shows a banner on every page. The first real `ingest` or `import-csv` deletes the demo data automatically (and refuses to touch real data).
+
+Run the tests with `python -m pytest`.
+
+## Getting real data in
+
+The app stores one row per market, commodity, variety and day, in rupees per quintal, and shows rupees per kg.
+
+1. **Daily from data.gov.in.** Register at https://data.gov.in, copy your API key into `DATA_GOV_API_KEY`, then run `flask --app wsgi ingest` once a day (cron example in `deploy/`). The default `DATA_GOV_RESOURCE_ID` is the Agmarknet daily mandi price dataset.
+2. **History from CSV.** `flask --app wsgi import-csv path/to/prices.csv`. Column names are matched loosely, so Agmarknet downloads such as "Market Name", "Modal Price (Rs./Quintal)" and "Reported Date" load as they are. Use this to backfill, because the daily API only gives the current day and history otherwise builds up one day at a time.
+
+Things to check before relying on it:
+
+- **The ingest command has not been run against the live API.** It was built from the published record format and tested with mocked responses. Run it once with your key and look at the output. data.gov.in has listed this dataset with and without a public API, so confirm the resource id is current.
+- **Coverage.** Agmarknet covers raw agricultural commodities (grains, pulses, vegetables, oilseeds). It does not have packaged items such as refined oil or sugar. The Department of Consumer Affairs publishes retail and wholesale prices for those at fcainfoweb.nic.in, but only as a website, so load them through `import-csv` if their terms suit you.
+- **Licence.** Check the reuse terms of each dataset before running this as a paid product, and keep the attribution in the footer.
+- **How the price is computed.** A commodity's price for a day is the average of the modal prices reported by markets that day. Which markets report changes from day to day, so the line has some noise.
+
+## Alerts and the weekly summary
+
+- `flask --app wsgi check-alerts` sends alerts that have just crossed their limit. An alert fires once, then re-arms when the price moves back. Run it after each ingest.
+- `flask --app wsgi send-digest` emails the weekly summary (`--dry-run` prints it instead). It goes to account holders who have not opted out and to people who signed up on the home page. Every email carries a signed unsubscribe link.
+- Set `SMTP_*` for email. With no `SMTP_HOST`, messages are written to the log instead of sent, which is handy in development.
+- Set `TELEGRAM_BOT_TOKEN` (create a bot with @BotFather) to enable Telegram. Users paste their numeric chat ID in their dashboard settings.
+
+## Plans and billing
+
+`flask --app wsgi pro-requests` lists who asked for Pro. `flask --app wsgi set-plan someone@example.com pro` switches a user on, and `... free` switches them off. Their alerts stop sending when they drop to free.
+
+Taking payments is the next piece to build. Razorpay Subscriptions suits Indian customers: add a checkout route, a webhook that calls the same plan update, and replace the "Request Pro access" button.
+
+## Deploying on Lightsail
+
+On Ubuntu:
+
+```bash
+sudo apt install python3-venv nginx sqlite3 certbot python3-certbot-nginx
+sudo useradd --system --create-home --home-dir /opt/bhav bhav
+sudo -u bhav git clone <your repo url> /opt/bhav        # or copy the files
+cd /opt/bhav && sudo -u bhav python3 -m venv .venv && sudo -u bhav .venv/bin/pip install -r requirements.txt
+sudo mkdir -p /var/lib/bhav /var/backups/bhav /var/log/bhav && sudo chown bhav: /var/lib/bhav /var/backups/bhav /var/log/bhav
+sudo -u bhav cp .env.example .env && sudo -u bhav nano .env   # set SECRET_KEY, BASE_URL, DATABASE_PATH=/var/lib/bhav/bhav.sqlite, keys
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"     # a good SECRET_KEY
+sudo cp deploy/bhav.service /etc/systemd/system/ && sudo systemctl enable --now bhav
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/bhav       # edit the domain, then link into sites-enabled
+sudo certbot --nginx -d your-domain.example
+sudo -u bhav crontab deploy/crontab.example
+```
+
+The app refuses to start outside debug mode if `SECRET_KEY` is missing or still a placeholder. Turn on Lightsail snapshots as well as the nightly SQLite backup.
+
+SQLite (in WAL mode) is plenty for the first few thousand users. If you outgrow it, the queries are plain SQL and `db.py` is the only place that opens a connection.
+
+## Security notes
+
+- Passwords are hashed with Werkzeug, sessions are signed cookies (set `COOKIE_SECURE=1` behind HTTPS), and every form carries a CSRF token.
+- A Content Security Policy blocks inline scripts and styles, so keep new styling in `static/style.css`.
+- The nginx config rate-limits `/login` and `/signup`. There is no email verification or password reset yet.
+- API keys and the Telegram token are never written to logs.
+
+## Layout
+
+```
+bhav/             the Flask app (views, auth, prices, ingest, notify, cli, templates, static)
+tests/            pytest suite
+deploy/           systemd, nginx and cron examples
+wsgi.py           entry point: gunicorn wsgi:app, flask --app wsgi <command>
+```
+
+## Ideas for next
+
+Razorpay billing, email verification and password reset, per-user supplier price lists, WhatsApp alerts (needs the WhatsApp Business API), a retail-price source for packaged goods.

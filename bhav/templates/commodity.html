@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import chart, change %}
+{% block title %}{{ name }} wholesale price{% if state %} in {{ state }}{% endif %} · {{ app_name }}{% endblock %}
+{% block description %}Today's wholesale mandi price of {{ name }}{% if state %} in {{ state }}{% endif %}, with a {{ days }}-day trend and market-by-market prices.{% endblock %}
+{% block content %}
+<section class="wrap section">
+  <p class="small"><a href="{{ url_for('main.prices_index') }}">All prices</a></p>
+  <h1 class="h2">{{ name }}{% if state %} in {{ state }}{% endif %}</h1>
+
+  {% if s.now is none %}
+  <p class="card">No recent prices for this selection.</p>
+  {% else %}
+  <div class="price-line">
+    <span class="price">{{ s.now|inr1 }}</span>
+    <span class="muted">per kg, average of {{ s.markets }} market{{ '' if s.markets == 1 else 's' }} on {{ s.last_date }}</span>
+    {{ change(s.change_pct, ' in ' ~ days ~ ' days') }}
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="tabs" role="group" aria-label="Time range">
+        {% for r in ranges %}
+          {% if r.locked %}
+          <a class="tab tab-locked" href="{{ url_for('main.index') }}#pricing">{{ r.days }} days · Pro</a>
+          {% else %}
+          <a class="tab" aria-current="{{ 'true' if r.days == days else 'false' }}" href="{{ url_for('main.commodity', slug=slug, days=r.days, state=state or None) }}">{{ r.days }} days</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <form method="get" class="inline-fields">
+        <input type="hidden" name="days" value="{{ days }}">
+        <label for="state" class="label">State</label>
+        <select id="state" name="state">
+          <option value="">All India</option>
+          {% for st in states %}<option value="{{ st }}" {{ 'selected' if st == state }}>{{ st }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn btn-outline">Show</button>
+      </form>
+    </div>
+    {% if limited %}<p class="flash flash-ok">History beyond 30 days is part of Pro.</p>{% endif %}
+    {{ chart(chart_data, 'Line chart of ' ~ name ~ ' prices over ' ~ days ~ ' days') }}
+    <div class="chart-foot">
+      <span>{{ s.points[0].date }}</span>
+      <span>Range {{ s.lo|inr1 }} to {{ s.hi|inr1 }}</span>
+      <span>{{ s.last_date }}</span>
+    </div>
+  </div>
+
+  <h2 class="h3 gap-top">Prices by market</h2>
+  <p class="muted small">Latest report from each market, cheapest first. Modal price is the price most lots traded at.</p>
+  <div class="table-scroll">
+    <table class="table">
+      <caption class="sr-only">Market prices for {{ name }}</caption>
+      <thead><tr><th scope="col">Market</th><th scope="col">State</th><th scope="col">Variety</th><th scope="col" class="num">Low</th><th scope="col" class="num">Modal</th><th scope="col" class="num">High</th></tr></thead>
+      <tbody>
+      {% for m in markets %}
+        <tr><th scope="row">{{ m.market }}</th><td>{{ m.state }}</td><td>{{ m.variety or '–' }}</td>
+        <td class="num">{{ m.lo|inr1 }}</td><td class="num">{{ m.modal|inr1 }}</td><td class="num">{{ m.hi|inr1 }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not is_pro %}<p class="muted small">Showing the 10 cheapest markets. <a href="{{ url_for('main.index') }}#pricing">Pro</a> shows up to 50.</p>{% endif %}
+
+  {% if comparison %}
+  <h2 class="h3 gap-top">Comparing states</h2>
+  <div class="table-scroll">
+    <table class="table">
+      <caption class="sr-only">Average price by state</caption>
+      <thead><tr><th scope="col">State</th><th scope="col" class="num">Average price per kg</th><th scope="col" class="num">Markets</th></tr></thead>
+      <tbody>
+      {% for c in comparison %}
+        <tr><th scope="row">{{ c.state }}</th><td class="num">{{ c.price|inr1 }}</td><td class="num">{{ c.markets }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif comparison is none %}
+  <p class="card muted">Side-by-side state comparison is part of <a href="{{ url_for('main.index') }}#pricing">Pro</a>.</p>
+  {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

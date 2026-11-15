@@ -1,0 +1,62 @@
+{% from '_macros.html' import csrf %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ app_name }}: daily wholesale prices for raw ingredients{% endblock %}</title>
+<meta name="description" content="{% block description %}Track daily wholesale prices for dal, rice, wheat, onion and more. Get price alerts and see what your monthly basket costs.{% endblock %}">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body>
+{% if demo_data %}
+<div class="banner" role="note">Demo data: the prices on this site are synthetic and for trying out the app only.</div>
+{% endif %}
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="{{ url_for('main.index') }}">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" class="logo-bg"/><path d="M6 21l6-6 4 4 8-9" fill="none" class="logo-mark" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      {{ app_name }}
+    </a>
+    <nav aria-label="Main" class="nav">
+      <a href="{{ url_for('main.prices_index') }}">Prices</a>
+      <a href="{{ url_for('main.index') }}#pricing">Plans</a>
+      {% if current_user %}
+        <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
+        <form method="post" action="{{ url_for('auth.logout') }}" class="inline-form">{{ csrf() }}<button type="submit" class="linklike">Log out</button></form>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}">Log in</a>
+        <a class="btn btn-primary" href="{{ url_for('auth.signup') }}">Sign up free</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="wrap flashes">
+      {% for category, message in messages %}
+        <p class="flash flash-{{ category }}" role="status">{{ message }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="wrap foot">
+    <div>
+      <p class="brand-text">{{ app_name }}</p>
+      <p class="muted small">Prices are average wholesale (mandi) reference prices from Government of India open data (Agmarknet). Your supplier's rate can differ. Nothing here is advice to buy or sell.</p>
+    </div>
+    <p class="muted small"><a href="{{ url_for('main.prices_index') }}">All prices</a></p>
+  </div>
+</footer>
+</body>
+</html>
