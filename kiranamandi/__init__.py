@@ -1,4 +1,4 @@
-"""Bhav: daily wholesale prices for raw ingredients, with alerts and a basket cost tracker."""
+"""KiranaMandi: daily wholesale prices for raw ingredients, with alerts and a basket cost tracker."""
 
 import logging
 import os
@@ -30,8 +30,8 @@ def create_app(test_config=None):
     env = os.environ.get
     app.config.from_mapping(
         SECRET_KEY=env("SECRET_KEY", "dev-change-me"),
-        DATABASE=env("DATABASE_PATH", str(Path(app.instance_path) / "bhav.sqlite")),
-        APP_NAME=env("APP_NAME", "Bhav"),
+        DATABASE=env("DATABASE_PATH", str(Path(app.instance_path) / "kiranamandi.sqlite")),
+        APP_NAME=env("APP_NAME", "KiranaMandi"),
         BASE_URL=env("BASE_URL", "http://localhost:5000"),
         PRO_PRICE_INR=int(env("PRO_PRICE_INR", "399")),
         DATA_GOV_API_KEY=env("DATA_GOV_API_KEY", ""),
@@ -40,7 +40,7 @@ def create_app(test_config=None):
         SMTP_PORT=int(env("SMTP_PORT", "587")),
         SMTP_USER=env("SMTP_USER", ""),
         SMTP_PASSWORD=env("SMTP_PASSWORD", ""),
-        MAIL_FROM=env("MAIL_FROM", "Bhav <alerts@localhost>"),
+        MAIL_FROM=env("MAIL_FROM", "KiranaMandi <alerts@localhost>"),
         TELEGRAM_BOT_TOKEN=env("TELEGRAM_BOT_TOKEN", ""),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",

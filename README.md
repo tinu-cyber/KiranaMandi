@@ -1,8 +1,8 @@
-# Bhav
+# KiranaMandi
 
 Daily wholesale prices for raw ingredients (wheat, rice, dal, onion and more), with price alerts and a monthly basket cost tracker. Built for cloud kitchens, caterers, small restaurants and traders who buy staples every week.
 
-"Bhav" is a working name. Change it with `APP_NAME` in `.env`.
+The name shown on the site comes from `APP_NAME` in `.env`.
 
 ## What it does
 
@@ -40,7 +40,7 @@ Run the tests with `python -m pytest`.
 
 The app stores one row per market, commodity, variety and day, in rupees per quintal, and shows rupees per kg.
 
-1. **Daily from data.gov.in.** Register at https://data.gov.in, copy your API key into `DATA_GOV_API_KEY`, then run `flask --app wsgi ingest` once a day (cron example in `deploy/`). The default `DATA_GOV_RESOURCE_ID` is the Agmarknet daily mandi price dataset.
+1. **Daily from data.gov.in.** Register a free account at https://data.gov.in (the developer pages are at https://data.gov.in/developers), log in, open "My Account" to find your API key, and put it in `DATA_GOV_API_KEY`. The site's layout changes now and then, so look for the API key section if the menu names differ. Then run `flask --app wsgi ingest` once a day (cron example in `deploy/`). The default `DATA_GOV_RESOURCE_ID` is the Agmarknet daily mandi price dataset.
 2. **History from CSV.** `flask --app wsgi import-csv path/to/prices.csv`. Column names are matched loosely, so Agmarknet downloads such as "Market Name", "Modal Price (Rs./Quintal)" and "Reported Date" load as they are. Use this to backfill, because the daily API only gives the current day and history otherwise builds up one day at a time.
 
 Things to check before relying on it:
@@ -69,16 +69,16 @@ On Ubuntu:
 
 ```bash
 sudo apt install python3-venv nginx sqlite3 certbot python3-certbot-nginx
-sudo useradd --system --create-home --home-dir /opt/bhav bhav
-sudo -u bhav git clone <your repo url> /opt/bhav        # or copy the files
-cd /opt/bhav && sudo -u bhav python3 -m venv .venv && sudo -u bhav .venv/bin/pip install -r requirements.txt
-sudo mkdir -p /var/lib/bhav /var/backups/bhav /var/log/bhav && sudo chown bhav: /var/lib/bhav /var/backups/bhav /var/log/bhav
-sudo -u bhav cp .env.example .env && sudo -u bhav nano .env   # set SECRET_KEY, BASE_URL, DATABASE_PATH=/var/lib/bhav/bhav.sqlite, keys
+sudo useradd --system --create-home --home-dir /opt/kiranamandi kiranamandi
+sudo -u kiranamandi git clone <your repo url> /opt/kiranamandi        # or copy the files
+cd /opt/kiranamandi && sudo -u kiranamandi python3 -m venv .venv && sudo -u kiranamandi .venv/bin/pip install -r requirements.txt
+sudo mkdir -p /var/lib/kiranamandi /var/backups/kiranamandi /var/log/kiranamandi && sudo chown kiranamandi: /var/lib/kiranamandi /var/backups/kiranamandi /var/log/kiranamandi
+sudo -u kiranamandi cp .env.example .env && sudo -u kiranamandi nano .env   # set SECRET_KEY, BASE_URL, DATABASE_PATH=/var/lib/kiranamandi/kiranamandi.sqlite, keys
 python3 -c "import secrets; print(secrets.token_urlsafe(48))"     # a good SECRET_KEY
-sudo cp deploy/bhav.service /etc/systemd/system/ && sudo systemctl enable --now bhav
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/bhav       # edit the domain, then link into sites-enabled
+sudo cp deploy/kiranamandi.service /etc/systemd/system/ && sudo systemctl enable --now kiranamandi
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/kiranamandi       # edit the domain, then link into sites-enabled
 sudo certbot --nginx -d your-domain.example
-sudo -u bhav crontab deploy/crontab.example
+sudo -u kiranamandi crontab deploy/crontab.example
 ```
 
 The app refuses to start outside debug mode if `SECRET_KEY` is missing or still a placeholder. Turn on Lightsail snapshots as well as the nightly SQLite backup.
@@ -95,7 +95,7 @@ SQLite (in WAL mode) is plenty for the first few thousand users. If you outgrow 
 ## Layout
 
 ```
-bhav/             the Flask app (views, auth, prices, ingest, notify, cli, templates, static)
+kiranamandi/             the Flask app (views, auth, prices, ingest, notify, cli, templates, static)
 tests/            pytest suite
 deploy/           systemd, nginx and cron examples
 wsgi.py           entry point: gunicorn wsgi:app, flask --app wsgi <command>

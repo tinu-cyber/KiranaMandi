@@ -1,3 +1,3 @@
-from bhav import create_app
+from kiranamandi import create_app
 
 app = create_app()

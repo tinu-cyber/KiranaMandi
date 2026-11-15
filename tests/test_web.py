@@ -1,4 +1,4 @@
-from bhav.db import get_db
+from kiranamandi.db import get_db
 from tests.conftest import make_pro, post, signup
 
 

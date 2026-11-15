@@ -2,9 +2,9 @@ from datetime import date
 
 import pytest
 
-from bhav import create_app
-from bhav.db import get_db
-from bhav.ingest import seed_demo
+from kiranamandi import create_app
+from kiranamandi.db import get_db
+from kiranamandi.ingest import seed_demo
 
 TODAY = date(2026, 11, 14)
 

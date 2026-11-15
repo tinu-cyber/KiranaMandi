@@ -1,7 +1,7 @@
-from bhav import prices
-from bhav.db import get_db
-from bhav.formatting import inr, pct
-from bhav.ingest import upsert
+from kiranamandi import prices
+from kiranamandi.db import get_db
+from kiranamandi.formatting import inr, pct
+from kiranamandi.ingest import upsert
 
 
 def rec(day, modal, market="M1", state="S1", commodity="Wheat"):

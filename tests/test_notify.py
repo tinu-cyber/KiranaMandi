@@ -1,5 +1,5 @@
-from bhav import notify, prices
-from bhav.db import get_db
+from kiranamandi import notify, prices
+from kiranamandi.db import get_db
 from tests.conftest import make_pro, post, signup
 
 

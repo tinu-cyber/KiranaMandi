@@ -1,8 +1,8 @@
 import pytest
 import requests
 
-from bhav import ingest
-from bhav.db import get_db, get_meta
+from kiranamandi import ingest
+from kiranamandi.db import get_db, get_meta
 from tests.conftest import TODAY
 
 GOOD = {"arrival_date": "14/11/2026", "state": "Punjab", "district": "Ludhiana",

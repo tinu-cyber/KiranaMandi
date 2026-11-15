@@ -1,12 +1,12 @@
-# Install with: sudo -u bhav crontab -e
+# Install with: sudo -u kiranamandi crontab -e
 # Lightsail servers run in UTC. 13:30 UTC is 19:00 in India.
-FLASK=/opt/bhav/.venv/bin/flask
+FLASK=/opt/kiranamandi/.venv/bin/flask
 
 # Daily: fetch the latest mandi prices, then send any alerts that just triggered
-30 13 * * *  cd /opt/bhav && $FLASK --app wsgi ingest && $FLASK --app wsgi check-alerts >> /var/log/bhav/cron.log 2>&1
+30 13 * * *  cd /opt/kiranamandi && $FLASK --app wsgi ingest && $FLASK --app wsgi check-alerts >> /var/log/kiranamandi/cron.log 2>&1
 
 # Monday 08:00 India time: weekly summary
-30 2 * * 1   cd /opt/bhav && $FLASK --app wsgi send-digest >> /var/log/bhav/cron.log 2>&1
+30 2 * * 1   cd /opt/kiranamandi && $FLASK --app wsgi send-digest >> /var/log/kiranamandi/cron.log 2>&1
 
 # Nightly database backup (copy these off the server too, for example with a Lightsail snapshot)
-15 2 * * *   sqlite3 /var/lib/bhav/bhav.sqlite ".backup '/var/backups/bhav/bhav-$(date +\%F).sqlite'"
+15 2 * * *   sqlite3 /var/lib/kiranamandi/kiranamandi.sqlite ".backup '/var/backups/kiranamandi/kiranamandi-$(date +\%F).sqlite'"
