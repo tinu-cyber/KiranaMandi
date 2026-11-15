@@ -65,21 +65,33 @@ Taking payments is the next piece to build. Razorpay Subscriptions suits Indian 
 
 ## Deploying on Lightsail
 
+Before you start, in the Lightsail console: attach a **static IP** to the instance, open ports **80 and 443** under Networking > IPv4 firewall, and point your domain's A record at the static IP.
+
 On Ubuntu:
 
 ```bash
-sudo apt install python3-venv nginx sqlite3 certbot python3-certbot-nginx
-sudo useradd --system --create-home --home-dir /opt/kiranamandi kiranamandi
-sudo -u kiranamandi git clone <your repo url> /opt/kiranamandi        # or copy the files
+sudo apt update && sudo apt install -y python3-venv nginx sqlite3 git certbot python3-certbot-nginx
+sudo useradd --system --home-dir /opt/kiranamandi --shell /usr/sbin/nologin kiranamandi
+sudo mkdir /opt/kiranamandi && sudo chown kiranamandi: /opt/kiranamandi
+# If the repo is private, add a read-only deploy key first (repo Settings > Deploy keys),
+# or copy the files up with scp instead of cloning.
+sudo -u kiranamandi git clone https://github.com/tinu-cyber/KiranaMandi.git /opt/kiranamandi
 cd /opt/kiranamandi && sudo -u kiranamandi python3 -m venv .venv && sudo -u kiranamandi .venv/bin/pip install -r requirements.txt
 sudo mkdir -p /var/lib/kiranamandi /var/backups/kiranamandi /var/log/kiranamandi && sudo chown kiranamandi: /var/lib/kiranamandi /var/backups/kiranamandi /var/log/kiranamandi
 sudo -u kiranamandi cp .env.example .env && sudo -u kiranamandi nano .env   # set SECRET_KEY, BASE_URL, DATABASE_PATH=/var/lib/kiranamandi/kiranamandi.sqlite, keys
 python3 -c "import secrets; print(secrets.token_urlsafe(48))"     # a good SECRET_KEY
 sudo cp deploy/kiranamandi.service /etc/systemd/system/ && sudo systemctl enable --now kiranamandi
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/kiranamandi       # edit the domain, then link into sites-enabled
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/kiranamandi       # edit server_name to your domain first
+sudo ln -s /etc/nginx/sites-available/kiranamandi /etc/nginx/sites-enabled/ && sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d your-domain.example
+sudo -u kiranamandi .venv/bin/flask --app wsgi ingest      # load the first prices (needs DATA_GOV_API_KEY)
 sudo -u kiranamandi crontab deploy/crontab.example
 ```
+
+Check it with `curl https://your-domain.example/healthz`, which shows the latest price date. Set `BASE_URL` to the https address and `COOKIE_SECURE=1` in `.env`. To try the site before you have an API key, run `sudo -u kiranamandi .venv/bin/flask --app wsgi seed-demo` instead of `ingest` (the site then shows a demo-data banner until real data replaces it).
+
+To deploy an update: `cd /opt/kiranamandi && sudo -u kiranamandi git pull && sudo systemctl restart kiranamandi`. If the logs misbehave, `sudo journalctl -u kiranamandi -e` shows them.
 
 The app refuses to start outside debug mode if `SECRET_KEY` is missing or still a placeholder. Turn on Lightsail snapshots as well as the nightly SQLite backup.
 
