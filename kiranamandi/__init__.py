@@ -37,6 +37,7 @@ def create_app(test_config=None):
         PRO_PRICE_INR=int(env("PRO_PRICE_INR", "399")),
         DATA_GOV_API_KEY=env("DATA_GOV_API_KEY", ""),
         DATA_GOV_RESOURCE_ID=env("DATA_GOV_RESOURCE_ID", "9ef84268-d588-465a-a308-a864a43d0070"),
+        DATA_GOV_PROXY=env("DATA_GOV_PROXY", ""),
         SMTP_HOST=env("SMTP_HOST", ""),
         SMTP_PORT=int(env("SMTP_PORT", "587")),
         SMTP_USER=env("SMTP_USER", ""),

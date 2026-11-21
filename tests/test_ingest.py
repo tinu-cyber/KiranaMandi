@@ -98,3 +98,15 @@ def test_demo_seed_is_deterministic(app):
         ingest.seed_demo(db, days=10, today=TODAY, seed=3)
         second = db.execute("SELECT SUM(modal_price) AS s, COUNT(*) AS n FROM prices").fetchone()
         assert tuple(first) == tuple(second)
+
+
+def test_fetch_uses_proxy_when_set(monkeypatch):
+    seen = {}
+
+    def fake_get_json(session, url, params):
+        seen["proxies"] = session.proxies
+        return {"records": [], "total": 0}
+
+    monkeypatch.setattr(ingest, "_get_json", fake_get_json)
+    ingest.fetch_agmarknet("key", "res", proxy="http://10.0.0.5:8888")
+    assert seen["proxies"] == {"http": "http://10.0.0.5:8888", "https": "http://10.0.0.5:8888"}

@@ -102,11 +102,17 @@ def _get_json(session, url, params):
     raise IngestError(f"data.gov.in request failed ({error})")
 
 
-def fetch_agmarknet(api_key, resource_id, page_size=1000, max_pages=100):
-    """Download the current daily mandi prices from the data.gov.in API."""
+def fetch_agmarknet(api_key, resource_id, page_size=1000, max_pages=100, proxy=""):
+    """Download the current daily mandi prices from the data.gov.in API.
+
+    data.gov.in refuses connections from many non-Indian IPs. On a server outside India,
+    set DATA_GOV_PROXY to an HTTP proxy running in India (see deploy/india-proxy.md).
+    """
     if not api_key:
         raise IngestError("DATA_GOV_API_KEY is not set")
     session = requests.Session()
+    if proxy:
+        session.proxies = {"http": proxy, "https": proxy}
     url = API_URL.format(resource_id=resource_id)
     records, offset = [], 0
     for _ in range(max_pages):
@@ -122,8 +128,8 @@ def fetch_agmarknet(api_key, resource_id, page_size=1000, max_pages=100):
     return records
 
 
-def ingest_latest(db, api_key, resource_id):
-    records = fetch_agmarknet(api_key, resource_id)
+def ingest_latest(db, api_key, resource_id, proxy=""):
+    records = fetch_agmarknet(api_key, resource_id, proxy=proxy)
     if not records:
         raise IngestError("The API returned no records")
     clear_demo_data(db)

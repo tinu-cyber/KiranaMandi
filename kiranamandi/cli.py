@@ -31,7 +31,8 @@ def register(app):
         """Fetch the latest daily mandi prices from data.gov.in (run daily from cron)."""
         cfg = current_app.config
         try:
-            n = ingest.ingest_latest(get_db(), cfg["DATA_GOV_API_KEY"], cfg["DATA_GOV_RESOURCE_ID"])
+            n = ingest.ingest_latest(get_db(), cfg["DATA_GOV_API_KEY"], cfg["DATA_GOV_RESOURCE_ID"],
+                                     proxy=cfg["DATA_GOV_PROXY"])
         except ingest.IngestError as exc:
             raise click.ClickException(str(exc))
         click.echo(f"{datetime.now():%Y-%m-%d %H:%M} ingested {n} rows.")

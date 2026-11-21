@@ -46,6 +46,7 @@ The app stores one row per market, commodity, variety and day, in rupees per qui
 Things to check before relying on it:
 
 - **The ingest command has not been run against the live API.** It was built from the published record format and tested with mocked responses. Run it once with your key and look at the output. data.gov.in has listed this dataset with and without a public API, so confirm the resource id is current.
+- **Servers outside India.** data.gov.in blocks many foreign IPs. If `ingest` can't connect, follow `deploy/india-proxy.md` (a small proxy in Mumbai) and set `DATA_GOV_PROXY`.
 - **Coverage.** Agmarknet covers raw agricultural commodities (grains, pulses, vegetables, oilseeds). It does not have packaged items such as refined oil or sugar. The Department of Consumer Affairs publishes retail and wholesale prices for those at fcainfoweb.nic.in, but only as a website, so load them through `import-csv` if their terms suit you.
 - **Licence.** Check the reuse terms of each dataset before running this as a paid product, and keep the attribution in the footer.
 - **How the price is computed.** A commodity's price for a day is the average of the modal prices reported by markets that day. Which markets report changes from day to day, so the line has some noise.
