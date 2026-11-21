@@ -4,9 +4,10 @@ import functools
 import hmac
 import re
 import secrets
+import time
 from datetime import datetime, timezone
 
-from flask import (Blueprint, abort, flash, g, redirect, render_template, request, session,
+from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template, request, session,
                    url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -15,6 +16,10 @@ from .db import get_db
 bp = Blueprint("auth", __name__)
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]+$")
 MIN_PASSWORD = 8
+# Login and signup POSTs allowed per client IP in a sliding window. Kept in SQLite so the
+# limit holds across gunicorn workers.
+AUTH_LIMIT = 10
+AUTH_WINDOW_SECONDS = 600
 
 
 def csrf_token():
@@ -82,11 +87,36 @@ def _start_session(user_id):
     session.permanent = True
 
 
+def _rate_limited():
+    """Record this attempt and return True if the client IP is over the limit."""
+    limit = current_app.config.get("AUTH_RATE_LIMIT", AUTH_LIMIT)
+    if not limit:
+        return False
+    ip = request.remote_addr or "unknown"
+    now = time.time()
+    db = get_db()
+    db.execute("DELETE FROM auth_attempts WHERE ts < ?", (now - AUTH_WINDOW_SECONDS,))
+    count = db.execute("SELECT COUNT(*) FROM auth_attempts WHERE ip = ?", (ip,)).fetchone()[0]
+    if count >= limit:
+        db.commit()
+        return True
+    db.execute("INSERT INTO auth_attempts (ip, ts) VALUES (?, ?)", (ip, now))
+    db.commit()
+    return False
+
+
+def _too_many(template):
+    flash("Too many attempts. Wait ten minutes and try again.", "error")
+    return render_template(template), 429
+
+
 @bp.route("/signup", methods=("GET", "POST"))
 def signup():
     if g.user:
         return redirect(url_for("main.dashboard"))
     if request.method == "POST":
+        if _rate_limited():
+            return _too_many("signup.html")
         email = clean_email(request.form.get("email"))
         password = request.form.get("password", "")
         error = None
@@ -119,6 +149,8 @@ def login():
     if g.user:
         return redirect(url_for("main.dashboard"))
     if request.method == "POST":
+        if _rate_limited():
+            return _too_many("login.html")
         email = clean_email(request.form.get("email")) or ""
         password = request.form.get("password", "")
         user = get_db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()

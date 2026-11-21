@@ -76,3 +76,10 @@ CREATE TABLE IF NOT EXISTS subscribers (
     email TEXT PRIMARY KEY,
     created_at TEXT NOT NULL
 );
+
+-- Recent login/signup attempts per client IP, for rate limiting (pruned as it goes).
+CREATE TABLE IF NOT EXISTS auth_attempts (
+    ip TEXT NOT NULL,
+    ts REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_attempts_ip_ts ON auth_attempts (ip, ts);

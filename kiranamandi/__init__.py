@@ -6,6 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from flask import Flask, g, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import auth, cli, db, formatting, views
 
@@ -49,6 +50,10 @@ def create_app(test_config=None):
     )
     if test_config:
         app.config.update(test_config)
+    if env("TRUST_PROXY", "0") == "1":
+        # Behind Caddy or nginx on the same server: take the client IP and scheme from
+        # the one proxy in front, so rate limits and https redirects see the real values.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     if app.config["SECRET_KEY"] in INSECURE_KEYS and not (app.debug or app.testing):
         raise RuntimeError("Set SECRET_KEY to a long random string (see .env.example).")
 

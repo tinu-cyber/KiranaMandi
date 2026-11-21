@@ -1,0 +1,20 @@
+# Add ONE of these blocks to /etc/caddy/Caddyfile, below your existing sites.
+# Leave the other sites (MarketAnalyzer on :8443) exactly as they are.
+# Then: sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+
+# Option A: with a domain (recommended for a public site).
+# Point the domain's A record at the server's static IP and open ports 80 and 443
+# in the Lightsail firewall. Caddy gets and renews a trusted HTTPS certificate itself.
+kiranamandi.example.in, www.kiranamandi.example.in {
+	encode gzip
+	reverse_proxy 127.0.0.1:8001
+}
+
+# Option B: no domain yet, served on the IP at port 8444 (open 8444 in the Lightsail
+# firewall). Uses Caddy's own certificate, so browsers show a warning: fine for
+# testing, not for customers.
+# :8444 {
+# 	tls internal
+# 	encode gzip
+# 	reverse_proxy 127.0.0.1:8001
+# }

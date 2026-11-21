@@ -152,3 +152,15 @@ def test_pro_request_recorded_once(demo, client):
     post(client, "/app/upgrade")
     with demo.app_context():
         assert get_db().execute("SELECT COUNT(*) AS n FROM pro_requests").fetchone()["n"] == 1
+
+
+def test_login_rate_limit(client, app):
+    app.config["AUTH_RATE_LIMIT"] = 3
+    for _ in range(3):
+        resp = post(client, "/login", {"email": "x@example.com", "password": "wrong password"})
+        assert resp.status_code == 200
+    blocked = post(client, "/login", {"email": "x@example.com", "password": "wrong password"})
+    assert blocked.status_code == 429
+    assert "Too many attempts" in blocked.get_data(as_text=True)
+    # Signup shares the same per-IP budget.
+    assert signup(client).status_code == 429

@@ -65,31 +65,32 @@ Taking payments is the next piece to build. Razorpay Subscriptions suits Indian 
 
 ## Deploying on Lightsail
 
-Before you start, in the Lightsail console: attach a **static IP** to the instance, open ports **80 and 443** under Networking > IPv4 firewall, and point your domain's A record at the static IP.
+These steps assume the server already runs Caddy (as it does for MarketAnalyzer). KiranaMandi runs under gunicorn on `127.0.0.1:8001` and Caddy sends traffic to it. Port 8000 is left for MarketAnalyzer. If you use nginx instead, `deploy/nginx.conf` still works.
+
+Before you start, in the Lightsail console: make sure the instance has a **static IP**. With a domain, open ports **80 and 443** under Networking > IPv4 firewall and point the domain's A record at the static IP. Without one, open **8444** instead (see option B in `deploy/Caddyfile.example`).
 
 On Ubuntu:
 
 ```bash
-sudo apt update && sudo apt install -y python3-venv nginx sqlite3 git certbot python3-certbot-nginx
+sudo apt update && sudo apt install -y python3-venv sqlite3 git
 sudo useradd --system --home-dir /opt/kiranamandi --shell /usr/sbin/nologin kiranamandi
 sudo mkdir /opt/kiranamandi && sudo chown kiranamandi: /opt/kiranamandi
-# If the repo is private, add a read-only deploy key first (repo Settings > Deploy keys),
-# or copy the files up with scp instead of cloning.
 sudo -u kiranamandi git clone https://github.com/tinu-cyber/KiranaMandi.git /opt/kiranamandi
 cd /opt/kiranamandi && sudo -u kiranamandi python3 -m venv .venv && sudo -u kiranamandi .venv/bin/pip install -r requirements.txt
 sudo mkdir -p /var/lib/kiranamandi /var/backups/kiranamandi /var/log/kiranamandi && sudo chown kiranamandi: /var/lib/kiranamandi /var/backups/kiranamandi /var/log/kiranamandi
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"     # copy this for SECRET_KEY
 sudo -u kiranamandi cp .env.example .env && sudo -u kiranamandi nano .env   # set SECRET_KEY, BASE_URL, DATABASE_PATH=/var/lib/kiranamandi/kiranamandi.sqlite, keys
-python3 -c "import secrets; print(secrets.token_urlsafe(48))"     # a good SECRET_KEY
-sudo cp deploy/kiranamandi.service /etc/systemd/system/ && sudo systemctl enable --now kiranamandi
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/kiranamandi       # edit server_name to your domain first
-sudo ln -s /etc/nginx/sites-available/kiranamandi /etc/nginx/sites-enabled/ && sudo rm -f /etc/nginx/sites-enabled/default
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d your-domain.example
+sudo cp deploy/kiranamandi.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now kiranamandi
+curl -s http://127.0.0.1:8001/healthz                              # should answer before you touch Caddy
+sudo nano /etc/caddy/Caddyfile                                     # paste one block from deploy/Caddyfile.example
+sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
 sudo -u kiranamandi .venv/bin/flask --app wsgi ingest      # load the first prices (needs DATA_GOV_API_KEY)
 sudo -u kiranamandi crontab deploy/crontab.example
 ```
 
-Check it with `curl https://your-domain.example/healthz`, which shows the latest price date. Set `BASE_URL` to the https address and `COOKIE_SECURE=1` in `.env`. To try the site before you have an API key, run `sudo -u kiranamandi .venv/bin/flask --app wsgi seed-demo` instead of `ingest` (the site then shows a demo-data banner until real data replaces it).
+Check it with `curl https://your-domain.example/healthz`, which shows the latest price date. Keep `BASE_URL` set to the public https address (it goes into email links), `COOKIE_SECURE=1` and `TRUST_PROXY=1`. To try the site before you have an API key, run `sudo -u kiranamandi .venv/bin/flask --app wsgi seed-demo` instead of `ingest` (the site then shows a demo-data banner until real data replaces it).
+
+Two gunicorn workers use roughly 100-150 MB of memory. On a 2 GB server shared with other apps, add a swapfile.
 
 To deploy an update: `cd /opt/kiranamandi && sudo -u kiranamandi git pull && sudo systemctl restart kiranamandi`. If the logs misbehave, `sudo journalctl -u kiranamandi -e` shows them.
 
@@ -101,7 +102,7 @@ SQLite (in WAL mode) is plenty for the first few thousand users. If you outgrow 
 
 - Passwords are hashed with Werkzeug, sessions are signed cookies (set `COOKIE_SECURE=1` behind HTTPS), and every form carries a CSRF token.
 - A Content Security Policy blocks inline scripts and styles, so keep new styling in `static/style.css`.
-- The nginx config rate-limits `/login` and `/signup`. There is no email verification or password reset yet.
+- `/login` and `/signup` are rate-limited in the app (10 attempts per IP per 10 minutes, shared across workers). There is no email verification or password reset yet.
 - API keys and the Telegram token are never written to logs.
 
 ## Layout
@@ -109,7 +110,7 @@ SQLite (in WAL mode) is plenty for the first few thousand users. If you outgrow 
 ```
 kiranamandi/             the Flask app (views, auth, prices, ingest, notify, cli, templates, static)
 tests/            pytest suite
-deploy/           systemd, nginx and cron examples
+deploy/           systemd, Caddy, nginx and cron examples
 wsgi.py           entry point: gunicorn wsgi:app, flask --app wsgi <command>
 ```
 
